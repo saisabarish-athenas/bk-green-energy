@@ -1,0 +1,11 @@
+# Prevent PHP execution in assets folder
+<FilesMatch "\\.php$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Allow only specific file types
+<FilesMatch "\\.(jpg|jpeg|png|gif|svg|mp4|webm|avif|ico)$">
+    Order allow,deny
+    Allow from all
+</FilesMatch>

@@ -1,0 +1,12 @@
+{
+    "name": "bkgreenenergy/website",
+    "description": "BK Green Energy - Renewable Energy Solutions Website",
+    "type": "project",
+    "require": {
+        "php": ">=7.4",
+        "phpmailer/phpmailer": "^6.9"
+    },
+    "config": {
+        "vendor-dir": "vendor"
+    }
+}
