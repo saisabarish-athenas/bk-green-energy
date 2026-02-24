@@ -1,3 +1,38 @@
+<?php
+require_once 'includes/db.php';
+$db = getDB();
+
+// Get filter parameters
+$state = $_GET['state'] ?? '';
+$year = $_GET['year'] ?? '';
+$status = $_GET['status'] ?? '';
+
+// Build query
+$sql = "SELECT * FROM projects WHERE 1=1";
+$params = [];
+
+if ($state) {
+    $sql .= " AND state = ?";
+    $params[] = $state;
+}
+if ($year) {
+    $sql .= " AND year = ?";
+    $params[] = $year;
+}
+if ($status) {
+    $sql .= " AND status = ?";
+    $params[] = $status;
+}
+
+$sql .= " ORDER BY year DESC, created_at DESC";
+$stmt = $db->prepare($sql);
+$stmt->execute($params);
+$projects = $stmt->fetchAll();
+
+// Get unique states and years for filters
+$states = $db->query("SELECT DISTINCT state FROM projects WHERE state IS NOT NULL ORDER BY state")->fetchAll(PDO::FETCH_COLUMN);
+$years = $db->query("SELECT DISTINCT year FROM projects WHERE year IS NOT NULL ORDER BY year DESC")->fetchAll(PDO::FETCH_COLUMN);
+?>
 <!DOCTYPE html>
 <html lang="en">
 
@@ -170,46 +205,90 @@
             </div>
         </div>
     </section>
-    <!-- FEATURED PROJECTS -->
+    <!-- PROJECTS LISTING -->
     <section class="featured-section">
         <div class="container">
-            <h2 class="fade-up">Featured Projects That Inspire</h2>
-            <div class="carousel-container">
-                <div class="carousel-track">
-                    <div class="carousel-slide active">
-                        <div class="slide-image">
-                            <img src="assets/images/Mega Solar Installation Project.png"
-                                alt="Mega Solar Installation Project" height="200">
-                        </div>
-                        <div class="slide-caption">
-                            <h3>Mega Solar Installation Project</h3>
-                            <p>Powering 500+ homes with clean renewable energy</p>
-                        </div>
+            <h2 class="fade-up">Our Projects</h2>
+            
+            <!-- Filters -->
+            <div class="mb-4">
+                <form method="GET" class="row g-3">
+                    <div class="col-md-3">
+                        <select name="state" class="form-select" onchange="this.form.submit()">
+                            <option value="">All States</option>
+                            <?php foreach ($states as $s): ?>
+                                <option value="<?= htmlspecialchars($s) ?>" <?= $state === $s ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($s) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
                     </div>
-                    <div class="carousel-slide">
-                        <div class="slide-image">
-                            <img src="assets/images/Industrial Energy Transformation.jpeg"
-                                alt="Industrial Energy Transformation" height="200">
-                        </div>
-                        <div class="slide-caption">
-                            <h3>Industrial Energy Transformation</h3>
-                            <p>Reducing carbon footprint by 60% for manufacturing units</p>
-                        </div>
+                    <div class="col-md-3">
+                        <select name="year" class="form-select" onchange="this.form.submit()">
+                            <option value="">All Years</option>
+                            <?php foreach ($years as $y): ?>
+                                <option value="<?= $y ?>" <?= $year == $y ? 'selected' : '' ?>>
+                                    <?= $y ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
                     </div>
-                    <div class="carousel-slide">
-                        <div class="slide-image">
-                            <img src="assets/images/Smart Hybrid Energy System.jpeg" alt="Smart Hybrid Energy System"
-                                height="200">
-                        </div>
-                        <div class="slide-caption">
-                            <h3>Smart Hybrid Energy System</h3>
-                            <p>Integrated solar with battery storage for 24/7 power</p>
-                        </div>
+                    <div class="col-md-3">
+                        <select name="status" class="form-select" onchange="this.form.submit()">
+                            <option value="">All Status</option>
+                            <option value="completed" <?= $status === 'completed' ? 'selected' : '' ?>>Completed</option>
+                            <option value="ongoing" <?= $status === 'ongoing' ? 'selected' : '' ?>>Ongoing</option>
+                            <option value="planned" <?= $status === 'planned' ? 'selected' : '' ?>>Planned</option>
+                        </select>
                     </div>
-                </div>
-                <button class="carousel-btn prev">‹</button>
-                <button class="carousel-btn next">›</button>
-                <div class="carousel-dots"></div>
+                    <div class="col-md-3">
+                        <a href="projects.php" class="btn btn-secondary w-100">Clear Filters</a>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Projects Grid -->
+            <div class="row g-4">
+                <?php if (empty($projects)): ?>
+                    <div class="col-12 text-center py-5">
+                        <p class="text-muted">No projects found. Check back soon!</p>
+                    </div>
+                <?php else: ?>
+                    <?php foreach ($projects as $project): ?>
+                        <div class="col-md-6 col-lg-4">
+                            <div class="card h-100 shadow-sm">
+                                <?php if ($project['image_path']): ?>
+                                    <img src="<?= htmlspecialchars($project['image_path']) ?>" class="card-img-top" alt="<?= htmlspecialchars($project['title']) ?>" style="height: 200px; object-fit: cover;">
+                                <?php else: ?>
+                                    <div style="height: 200px; background: linear-gradient(135deg, #0f7c3a, #19a84a); display: flex; align-items: center; justify-content: center; color: white;">
+                                        <i class="fas fa-solar-panel fa-3x"></i>
+                                    </div>
+                                <?php endif; ?>
+                                <div class="card-body">
+                                    <h5 class="card-title"><?= htmlspecialchars($project['title']) ?></h5>
+                                    <p class="card-text"><?= htmlspecialchars(substr($project['description'], 0, 100)) ?>...</p>
+                                    <ul class="list-unstyled small">
+                                        <?php if ($project['capacity_mw']): ?>
+                                            <li><strong>Capacity:</strong> <?= htmlspecialchars($project['capacity_mw']) ?> MW</li>
+                                        <?php endif; ?>
+                                        <?php if ($project['location']): ?>
+                                            <li><strong>Location:</strong> <?= htmlspecialchars($project['location']) ?>, <?= htmlspecialchars($project['state']) ?></li>
+                                        <?php endif; ?>
+                                        <?php if ($project['client']): ?>
+                                            <li><strong>Client:</strong> <?= htmlspecialchars($project['client']) ?></li>
+                                        <?php endif; ?>
+                                        <?php if ($project['year']): ?>
+                                            <li><strong>Year:</strong> <?= htmlspecialchars($project['year']) ?></li>
+                                        <?php endif; ?>
+                                    </ul>
+                                    <span class="badge bg-<?= $project['status'] === 'completed' ? 'success' : ($project['status'] === 'ongoing' ? 'warning' : 'info') ?>">
+                                        <?= ucfirst(htmlspecialchars($project['status'])) ?>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                <?php endif; ?>
             </div>
         </div>
     </section>

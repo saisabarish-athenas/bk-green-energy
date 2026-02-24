@@ -1,8 +1,11 @@
 <?php
+require_once 'includes/db.php';
+
 // Form submission handler
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name = trim($_POST['name'] ?? '');
     $email = trim($_POST['email'] ?? '');
+    $phone = trim($_POST['phone'] ?? '');
     $message = trim($_POST['message'] ?? '');
 
     $errors = [];
@@ -22,24 +25,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = "Message must be between 5-1000 characters";
     }
 
-    // Send email if no errors
+    // Save to database and send email if no errors
     if (empty($errors)) {
-        $to = "info@bkgreenenergy.com";
-        $subject = "New Consultation Request from " . htmlspecialchars($name, ENT_QUOTES, 'UTF-8');
-        
-        $body = "Name: " . htmlspecialchars($name, ENT_QUOTES, 'UTF-8') . "\n";
-        $body .= "Email: " . htmlspecialchars($email, ENT_QUOTES, 'UTF-8') . "\n";
-        $body .= "Message:\n" . htmlspecialchars($message, ENT_QUOTES, 'UTF-8');
-        
-        $headers = "From: noreply@bkgreenenergy.com\r\n";
-        $headers .= "Reply-To: " . filter_var($email, FILTER_SANITIZE_EMAIL) . "\r\n";
-        $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
-        $headers .= "X-Mailer: PHP/" . phpversion();
+        try {
+            $db = getDB();
+            $stmt = $db->prepare("INSERT INTO leads (name, phone, email, message, source_page) VALUES (?, ?, ?, ?, ?)");
+            $stmt->execute([$name, $phone, $email, $message, 'home']);
+            
+            $to = "info@bkgreenenergy.com";
+            $subject = "New Consultation Request from " . htmlspecialchars($name, ENT_QUOTES, 'UTF-8');
+            
+            $body = "Name: " . htmlspecialchars($name, ENT_QUOTES, 'UTF-8') . "\n";
+            $body .= "Phone: " . htmlspecialchars($phone, ENT_QUOTES, 'UTF-8') . "\n";
+            $body .= "Email: " . htmlspecialchars($email, ENT_QUOTES, 'UTF-8') . "\n";
+            $body .= "Message:\n" . htmlspecialchars($message, ENT_QUOTES, 'UTF-8');
+            
+            $headers = "From: noreply@bkgreenenergy.com\r\n";
+            $headers .= "Reply-To: " . filter_var($email, FILTER_SANITIZE_EMAIL) . "\r\n";
+            $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
+            $headers .= "X-Mailer: PHP/" . phpversion();
 
-        if (@mail($to, $subject, $body, $headers)) {
+            @mail($to, $subject, $body, $headers);
             $success = true;
-        } else {
-            $errors[] = "Failed to send message. Please try again.";
+        } catch (Exception $e) {
+            $errors[] = "Failed to save. Please try again.";
         }
     }
 }
@@ -232,6 +241,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <form method="POST" action="#consultation" class="consultation-form">
                     <input type="text" name="name" placeholder="Your Name" required pattern="[A-Za-z ]{2,50}"
                         title="Name should contain only letters and spaces (2-50 characters)">
+                    <input type="tel" name="phone" placeholder="Your Phone" maxlength="20">
                     <input type="email" name="email" placeholder="Your Email" required maxlength="100"
                         autocomplete="email" value="<?php echo isset($_POST['email']) ? htmlspecialchars($_POST['email'], ENT_QUOTES, 'UTF-8') : ''; ?>">
 
@@ -325,8 +335,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     </footer>
 
-
-
+    <!-- WhatsApp Floating Button -->
+    <a href="https://wa.me/917539944358?text=Hi%20BK%20Green%20Energy,%20I%20need%20information%20about%20solar%20solutions" 
+       class="whatsapp-float" target="_blank" title="Chat on WhatsApp">
+        <img src="assets/images/WhatsApp.png" alt="WhatsApp" style="width: 60px; height: 60px;">
+    </a>
+    <style>
+        .whatsapp-float { position: fixed; bottom: 30px; right: 30px; z-index: 1000; transition: transform 0.3s; }
+        .whatsapp-float:hover { transform: scale(1.1); }
+    </style>
 
     <script src="js/script.js"></script>
     <!-- Bootstrap CSS -->
